@@ -3,4 +3,4 @@ project(waitport C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(waitport main.c)
+add_executable(waitport main.c lib.c)
