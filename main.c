@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv) {
     struct opts o = parse_args(argc, argv);
-    if (wait_until_connects(o.host, o.port, o.timeout, o.sleep)) {
+    if (wait_until_connects(o)) {
         return 0;
     }
     return 1;

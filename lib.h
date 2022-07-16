@@ -12,7 +12,7 @@ struct opts {
     long sleep;
 };
 
-_Bool wait_until_connects(const char *host, const char *port, long timeout, long sleep);
+_Bool wait_until_connects(struct opts o);
 struct opts parse_args(int argc, char **argv);
 
 #endif //WAITPORT_LIB_H

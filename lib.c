@@ -2,6 +2,8 @@
 // Created by yuce on 16.07.2022.
 //
 
+#define _XOPEN_SOURCE 700
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,16 +13,21 @@
 #include <time.h>
 #include <limits.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #include "lib.h"
 
 #define PROG "waitport"
 
 void print_usage(const char *argv0) {
-    printf(
-            "Usage: %s host port [-t timeout] [-s sleep]\n\n"
-            "    -t: minimum time to wait in seconds, e.g., 10 == 10 seconds. Defaults to -1, no timeout.\n"
-            "    -s: sleep time between retries in seconds, e.g., 0.1 == 100 milliseconds. Defaults to 1.\n"
+    printf("Usage: %s [host] port [options...]\n\n"
+            "Options:\n"
+            "    -t: Minimum time to wait in seconds.\n"
+            "        Example: 10 == 10 seconds.\n"
+            "        Defaults to -1, no timeout.\n"
+            "    -s: Sleep time between retries in seconds.\n"
+            "        Example: 0.1 == 100 milliseconds.\n"
+            "        Defaults to 1 second.\n"
             "\n", argv0);
     exit(EXIT_FAILURE);
 }
@@ -42,6 +49,7 @@ _Bool connects(const char *host, const char *port) {
         bye(gai_strerror(status));
     }
     struct addrinfo *p = NULL;
+    _Bool ret = 0;
     // traverse the linked list to check whether one of the items is connectable.
     for (p = res; p != NULL; p = p->ai_next) {
         int s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
@@ -49,12 +57,14 @@ _Bool connects(const char *host, const char *port) {
             continue;
         }
         int c = connect(s, p->ai_addr, p->ai_addrlen);
-        freeaddrinfo(res);
         if (c >= 0) {
-            return 1;
+            ret = 1;
+            goto ret;
         }
     }
-    return 0;
+ret:
+    freeaddrinfo(res);
+    return ret;
 }
 
 static inline uint64_t time_delta_us(struct timespec a, struct timespec b) {
@@ -74,22 +84,22 @@ void sleep_ms(long ms) {
     } while (res && errno == EINTR);
 }
 
-_Bool wait_until_connects(const char *host, const char *port, long timeout, long sleep) {
-    if (timeout < 0) {
-        timeout = LONG_MAX;
+_Bool wait_until_connects(struct opts o) {
+    if (o.timeout < 0) {
+        o.timeout = LONG_MAX;
     }
     struct timespec tic;
     struct timespec toc;
     clock_gettime(CLOCK_MONOTONIC_RAW, &tic);
     uint64_t delta_ms;
     do {
-        if (connects(host, port)) {
+        if (connects(o.host, o.port)) {
             return 1;
         }
-        sleep_ms(sleep);
+        sleep_ms(o.sleep);
         clock_gettime(CLOCK_MONOTONIC_RAW, &toc);
         delta_ms = time_delta_us(toc, tic) / 1000;
-    } while (delta_ms < timeout);
+    } while (delta_ms < o.timeout);
     return 0;
 }
 
@@ -125,13 +135,6 @@ struct opts parse_args(int argc, char **argv) {
                     bye("invalid option");
             }
         }
-        if (r.host == NULL) {
-            if (strlen(arg) > 128) {
-                bye(PROG ": host too long");
-            }
-            r.host = arg;
-            continue;
-        }
         if (r.port == NULL) {
             if (strlen(arg) > 5) {
                 bye(PROG ": port too long");
@@ -139,10 +142,20 @@ struct opts parse_args(int argc, char **argv) {
             r.port = arg;
             continue;
         }
+        if (r.host == NULL) {
+            if (strlen(arg) > 128) {
+                bye(PROG ": host too long");
+            }
+            r.host = arg;
+            continue;
+        }
         bye("host and port were alrady assigned");
     }
-    if (r.host == NULL || r.port == NULL) {
+    if (r.port == NULL) {
         print_usage(argv[0]);
+    }
+    if (r.host == NULL) {
+        r.host = "localhost";
     }
     return r;
 }
