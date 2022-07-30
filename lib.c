@@ -136,17 +136,12 @@ struct opts parse_args(int argc, char **argv) {
             }
         }
         if (r.port == NULL) {
-            if (strlen(arg) > 5) {
-                bye(PROG ": port too long");
-            }
             r.port = arg;
             continue;
         }
         if (r.host == NULL) {
-            if (strlen(arg) > 128) {
-                bye(PROG ": host too long");
-            }
-            r.host = arg;
+            r.host = r.port;
+            r.port = arg;
             continue;
         }
         bye("host and port were alrady assigned");
@@ -156,6 +151,12 @@ struct opts parse_args(int argc, char **argv) {
     }
     if (r.host == NULL) {
         r.host = "localhost";
+    }
+    if (strlen(r.port) > 5) {
+        bye(PROG ": port too long");
+    }
+    if (strlen(r.host) > 128) {
+        bye(PROG ": host too long");
     }
     return r;
 }
