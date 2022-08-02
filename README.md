@@ -1,7 +1,7 @@
 # waitport
 
 `waitport` is a simple utility that waits for a TCP port to be connectable.
-It is very small, about 15KBs when compiled and stripped.
+It is very small, about 10KBs when compiled and stripped.
 
 ## Build
 
