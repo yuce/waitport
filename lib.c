@@ -20,15 +20,24 @@
 #define PROG "waitport"
 
 void print_usage(const char *argv0) {
-    printf("Usage: %s [host] port [options...]\n\n"
+    fprintf(stderr, 
+            "Usage: %s -p port [options...]\n"
+            "       %s -p port -h host [options...]\n"
+            "       %s -p port -t seconds -s seconds\n\n"
             "Options:\n"
+            "    -p: The port number.\n"
+            "        Example: 9701\n"
+            "        There is no default value, it is must have argument.\n"
+            "    -h: Name of the host.\n"
+            "        Example: foobar.com.\n"
+            "        Defaults to localhost.\n"
             "    -t: Minimum time to wait in seconds.\n"
             "        Example: 10 == 10 seconds.\n"
             "        Defaults to -1, no timeout.\n"
             "    -s: Sleep time between retries in seconds.\n"
             "        Example: 0.1 == 100 milliseconds.\n"
             "        Defaults to 1 second.\n"
-            "\n", argv0);
+            "\n", argv0, argv0, argv0);
     exit(EXIT_FAILURE);
 }
 
@@ -90,14 +99,14 @@ _Bool wait_until_connects(struct opts o) {
     }
     struct timespec tic;
     struct timespec toc;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &tic);
+    clock_gettime(_CLOCK_MONOTONIC, &tic);
     uint64_t delta_ms;
     do {
         if (connects(o.host, o.port)) {
             return 1;
         }
         sleep_ms(o.sleep);
-        clock_gettime(CLOCK_MONOTONIC_RAW, &toc);
+        clock_gettime(_CLOCK_MONOTONIC, &toc);
         delta_ms = time_delta_us(toc, tic) / 1000;
     } while (delta_ms < o.timeout);
     return 0;
@@ -109,54 +118,54 @@ long parse_ms(char *text) {
 }
 
 struct opts parse_args(int argc, char **argv) {
-    struct opts r;
-    memset(&r, 0, sizeof r);
-    r.timeout = -1;
-    r.sleep = 1000;
-    int idx = 1;
-    while (idx < argc) {
-        char *arg = argv[idx++];
-        unsigned long l = strlen(arg);
-        if (l > 0 && arg[0] == '-') {
-            switch (arg[1]) {
-                case 't':
-                    if (idx >= argc) {
-                        bye("-t requires an argument");
-                    }
-                    r.timeout = parse_ms(argv[idx++]);
-                    continue;
-                case 's':
-                    if (idx >= argc) {
-                        bye("-s requires an argument");
-                    }
-                    r.sleep = parse_ms(argv[idx++]);
-                    continue;
-                default:
-                    bye("invalid option");
-            }
+    int opt;
+    _Bool pfnd = 0;
+    _Bool sfnd = 0; 
+    _Bool tfnd = 0;
+    _Bool hfnd = 0;
+    struct opts r = {.host = NULL, .port = NULL, .timeout = -1, .sleep = 1000};
+
+    while ((opt = getopt(argc, argv, "p:s:t:h:")) != -1) {
+        switch (opt) {
+            case 'p':
+                if (strlen(optarg) > 5) {
+                    bye(PROG ": port too long");
+                }
+                pfnd = 1;
+                r.port = optarg;
+                break;
+
+            case 's':
+                sfnd = 1;
+                r.sleep = parse_ms(optarg);
+                break;
+
+            case 't':
+                tfnd = 1;
+                r.timeout = parse_ms(optarg);
+                break;
+
+            case 'h':
+                if (strlen(optarg) > 128) {
+                    bye(PROG ": host too long");
+                }
+                hfnd = 1;
+                r.host = optarg;
+                break;
+
+            default:
+                /* precise message given by getopt */
+                break;
         }
-        if (r.port == NULL) {
-            r.port = arg;
-            continue;
-        }
-        if (r.host == NULL) {
-            r.host = r.port;
-            r.port = arg;
-            continue;
-        }
-        bye("host and port were alrady assigned");
     }
-    if (r.port == NULL) {
-        print_usage(argv[0]);
-    }
-    if (r.host == NULL) {
+
+    if (!hfnd) {
         r.host = "localhost";
     }
-    if (strlen(r.port) > 5) {
-        bye(PROG ": port too long");
+
+    if (!pfnd || (optind < argc)) {
+        print_usage(*argv);
     }
-    if (strlen(r.host) > 128) {
-        bye(PROG ": host too long");
-    }
+    
     return r;
 }
