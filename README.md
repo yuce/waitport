@@ -7,7 +7,7 @@ It is very small, about 10KBs when compiled and stripped.
 
 Requirements:
 
-* Linux (May work on other POSIX).
+* Linux / OpenBSD / macOS (May work on other POSIX).
 * C compiler with C99 support.
 
 ### Using Make
