@@ -90,14 +90,14 @@ _Bool wait_until_connects(struct opts o) {
     }
     struct timespec tic;
     struct timespec toc;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &tic);
+    clock_gettime(CLOCK_MONOTONIC, &tic);
     uint64_t delta_ms;
     do {
         if (connects(o.host, o.port)) {
             return 1;
         }
         sleep_ms(o.sleep);
-        clock_gettime(CLOCK_MONOTONIC_RAW, &toc);
+        clock_gettime(CLOCK_MONOTONIC, &toc);
         delta_ms = time_delta_us(toc, tic) / 1000;
     } while (delta_ms < o.timeout);
     return 0;
